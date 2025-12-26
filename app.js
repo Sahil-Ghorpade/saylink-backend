@@ -27,8 +27,16 @@ mongoose
         console.error("MongoDB connection error:", err);
     });
 
+const allowedOrigins = process.env.CLIENT_URL.split(",");
+
 app.use(cors({
-    origin: process.env.CLIENT_URL,
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error("CORS not allowed"));
+        }
+    },
     credentials: true
 }));
 
