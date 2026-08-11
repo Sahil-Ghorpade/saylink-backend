@@ -21,10 +21,10 @@ const dbUrl = process.env.MONGO_URL;
 mongoose
     .connect(dbUrl)
     .then(() => {
-        console.log("MongoDB connected");
+        console.log("MongoDB Atlas Cloud connected successfully");
     })
     .catch((err) => {
-        console.error("MongoDB connection error:", err);
+        console.error("MongoDB Atlas connection error:", err);
     });
 
 const allowedOrigins = process.env.CLIENT_URL.split(",");

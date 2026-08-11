@@ -3,8 +3,8 @@ const router = express.Router();
 const authMiddleware = require("../middleware/auth.middleware");
 const postController = require("../controllers/post.controller");
 const multer = require("multer");
-const { storage } = require("../config/cloudinary");
-const upload = multer({ storage });
+const { postStorage } = require("../config/cloudinary");
+const upload = multer({ storage: postStorage });
 const { actionLimiter } = require("../middleware/rateLimit.middleware");
 
 router.post(
