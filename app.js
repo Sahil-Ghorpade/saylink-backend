@@ -60,4 +60,21 @@ app.use("/api/conversations", conversationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/test", testRoutes);
 
+// 404 Fallback Handler for undefined API routes
+app.use((req, res) => {
+    res.status(404).json({
+        success: false,
+        message: `API route '${req.originalUrl}' not found`,
+    });
+});
+
+// Central Error Handler Middleware
+app.use((err, req, res, next) => {
+    console.error("Unhandled Backend Error:", err);
+    res.status(err.status || 500).json({
+        success: false,
+        message: err.message || "Internal Server Error",
+    });
+});
+
 module.exports = app;

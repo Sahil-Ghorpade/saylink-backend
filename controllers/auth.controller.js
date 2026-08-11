@@ -13,11 +13,13 @@ exports.login = async (req, res) => {
             });
         }
 
-        const user = await User.findOne({ email });
+        const normalizedEmail = email.trim().toLowerCase();
+
+        const user = await User.findOne({ email: normalizedEmail });
         if (!user) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid credentials",
+                message: "Invalid email or password",
             });
         }
 
@@ -25,7 +27,7 @@ exports.login = async (req, res) => {
         if (!isMatch) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid credentials",
+                message: "Invalid email or password",
             });
         }
 
@@ -40,23 +42,30 @@ exports.login = async (req, res) => {
             message: "Login successful",
             token,
             user: {
+                _id: user._id,
                 id: user._id,
+                name: user.name || "",
                 username: user.username,
                 email: user.email,
+                bio: user.bio || "",
+                isPrivate: user.isPrivate || false,
                 profileImage: user.profileImage,
+                followers: user.followers || [],
+                following: user.following || [],
             },
         });
     } catch (error) {
+        console.error("Login error:", error);
         res.status(500).json({
             success: false,
-            message: "Server error",
+            message: "Server error during login",
         });
     }
 };
 
 exports.signup = async (req, res) => {
     try {
-        const { username, email, password } = req.body;
+        let { username, email, password } = req.body;
 
         if (!username || !email || !password) {
             return res.status(400).json({
@@ -65,14 +74,46 @@ exports.signup = async (req, res) => {
             });
         }
 
-        const existingUser = await User.findOne({
-            $or: [{ email }, { username }],
-        });
+        const normalizedEmail = email.trim().toLowerCase();
+        const normalizedUsername = username.trim().toLowerCase();
 
-        if (existingUser) {
+        // Username validation
+        if (normalizedUsername.length < 3) {
             return res.status(400).json({
                 success: false,
-                message: "User already exists",
+                message: "Username must be at least 3 characters long",
+            });
+        }
+
+        const usernameRegex = /^[a-zA-Z0-9_.]+$/;
+        if (!usernameRegex.test(normalizedUsername)) {
+            return res.status(400).json({
+                success: false,
+                message: "Username can only contain letters, numbers, dots, and underscores",
+            });
+        }
+
+        // Password validation
+        if (password.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: "Password must be at least 6 characters long",
+            });
+        }
+
+        const existingEmail = await User.findOne({ email: normalizedEmail });
+        if (existingEmail) {
+            return res.status(400).json({
+                success: false,
+                message: "An account with this email already exists",
+            });
+        }
+
+        const existingUsername = await User.findOne({ username: normalizedUsername });
+        if (existingUsername) {
+            return res.status(400).json({
+                success: false,
+                message: "This username is already taken",
             });
         }
 
@@ -80,8 +121,8 @@ exports.signup = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, salt);
 
         const user = new User({
-            username,
-            email,
+            username: normalizedUsername,
+            email: normalizedEmail,
             password: hashedPassword,
         });
 
@@ -89,12 +130,13 @@ exports.signup = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: "User registered successfully",
+            message: "Account created successfully",
         });
     } catch (error) {
+        console.error("Signup error:", error);
         res.status(500).json({
             success: false,
-            message: "Server error",
+            message: "Server error during registration",
         });
     }
 };

@@ -1,9 +1,18 @@
 const User = require("../models/User");
+const { cloudinary } = require("../config/cloudinary");
 
 exports.updateSettings = async (req, res) => {
     try {
         const updates = {};
         const userId = req.user._id;
+        const currentUser = await User.findById(userId);
+
+        if (!currentUser) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
+        }
 
         if (req.body.name !== undefined) {
             updates.name = req.body.name.trim();
@@ -14,7 +23,7 @@ exports.updateSettings = async (req, res) => {
         }
 
         if (req.body.isPrivate !== undefined) {
-            updates.isPrivate = req.body.isPrivate;
+            updates.isPrivate = req.body.isPrivate === "true" || req.body.isPrivate === true;
         }
 
         if (req.body.username !== undefined) {
@@ -24,6 +33,14 @@ exports.updateSettings = async (req, res) => {
                 return res.status(400).json({
                     success: false,
                     message: "Username cannot be empty",
+                });
+            }
+
+            const usernameRegex = /^[a-zA-Z0-9_.]+$/;
+            if (!usernameRegex.test(newUsername)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Username can only contain letters, numbers, dots, and underscores",
                 });
             }
 
@@ -43,6 +60,15 @@ exports.updateSettings = async (req, res) => {
         }
 
         if (req.file) {
+            // Cleanup previous Cloudinary profile image if exists
+            if (currentUser.profileImage?.public_id) {
+                try {
+                    await cloudinary.uploader.destroy(currentUser.profileImage.public_id);
+                } catch (cloudinaryErr) {
+                    console.warn("Failed to delete old profile image:", cloudinaryErr.message);
+                }
+            }
+
             updates.profileImage = {
                 url: req.file.path,
                 public_id: req.file.filename,
@@ -80,16 +106,20 @@ exports.searchUsers = async (req, res) => {
         }
 
         const users = await User.find({
-            username: { $regex: query, $options: "i" },
+            $or: [
+                { username: { $regex: query.trim(), $options: "i" } },
+                { name: { $regex: query.trim(), $options: "i" } },
+            ],
         })
-            .select("username profileImage")
-            .limit(10);
+            .select("username name profileImage")
+            .limit(15);
 
         res.json({
             success: true,
             users,
         });
     } catch (error) {
+        console.error("Search error:", error);
         res.status(500).json({
             success: false,
             message: "Failed to search users",
